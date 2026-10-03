@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Life RPG Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+
+  /* Concept: the game is a triplicate civil-registry form. Desk, carbon-copy paper, blue carbon ink, red stamp. */
+  :root {
+    --desk: #1d2823;
+    --desk-text: #cfdccb;
+    --paper: #e3ebd9;
+    --paper-2: #d3dec7;
+    --rule: #9bae98;
+    --ink: #17203f;
+    --ink-soft: #3d4a68;
+    --stamp: #c0352b;
+    --mark: #f3d54e;
+    --good: #1f6b3d;
+    --warn: #8a5600;
+    --display: 'Big Shoulders Display', 'Arial Narrow', Impact, sans-serif;
+    --type: 'Courier Prime', 'Courier New', monospace;
+    /* legacy names used by the game screen */
+    --bg: var(--desk); --panel: var(--paper); --border: var(--rule); --text: var(--ink);
+    --muted: var(--ink-soft); --accent: var(--ink); --accent2: var(--ink);
+    --danger: var(--stamp); --success: var(--good); --warning: var(--warn);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--type); background: var(--desk); color: var(--ink); min-height: 100vh; line-height: 1.5; font-size: 15px; }
+  .container { max-width: 940px; margin: 0 auto; padding: 18px 14px 0; }
+
+  .masthead { padding: 6px 2px 16px; color: var(--desk-text); }
+  h1 { font-family: var(--display); font-weight: 900; font-size: clamp(2.6rem, 11vw, 4.6rem); line-height: .86; letter-spacing: .005em; text-transform: uppercase; color: var(--paper); }
+  .subtitle { margin-top: 8px; font-size: .92rem; max-width: 46ch; }
+
+  /* ----- paper sheets ----- */
+  .panel, .sheet { background: var(--paper); border: 1px solid var(--ink); border-radius: 2px; padding: 16px 18px; margin-bottom: 14px; box-shadow: 5px 5px 0 #0d1512; position: relative; }
+  .sheet { padding: 0; }
+  .sheet-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; padding: 14px 18px 10px; border-bottom: 2px solid var(--ink); }
+  .sheet-head h2 { font-family: var(--display); font-weight: 900; font-size: clamp(1.7rem, 6vw, 2.5rem); line-height: .9; text-transform: uppercase; }
+  .sheet-head .formno { font-size: .78rem; text-align: right; color: var(--ink-soft); line-height: 1.25; }
+  .perf { border-top: 2px dashed var(--ink-soft); margin: 0; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 10px 0; }
+  .stat { background: var(--paper-2); border: 1px solid var(--rule); border-radius: 2px; padding: 7px 10px; font-size: .85rem; }
+  .stat span { font-weight: 700; color: var(--ink); }
+  .bar { height: 9px; background: repeating-linear-gradient(90deg, var(--paper) 0 3px, transparent 3px 4px); border: 1px solid var(--ink-soft); margin-top: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; transition: width .3s; }
+  .bar-health { background: var(--good); } .bar-happy { background: var(--ink); } .bar-stress { background: var(--stamp); } .bar-heat { background: var(--mark); }
+
+  .log { max-height: 180px; overflow-y: auto; font-size: .86rem; color: var(--ink-soft); padding: 8px; background: var(--paper-2); border: 1px solid var(--rule); margin-top: 8px; }
+  .log div { margin-bottom: 4px; } .log .event { color: var(--warn); } .log .good { color: var(--good); } .log .bad { color: var(--stamp); }
+
+  .choices { display: flex; flex-direction: column; gap: 8px; }
+  button { font-family: var(--type); font-size: 1rem; background: var(--paper); color: var(--ink); border: 1.5px solid var(--ink); border-radius: 2px; padding: 14px 16px; min-height: 52px; width: 100%; text-align: left; cursor: pointer; box-shadow: 3px 3px 0 var(--ink); transition: transform .08s, box-shadow .08s, background .12s; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  button:hover { background: var(--mark); }
+  button:active { transform: translate(3px,3px); box-shadow: 0 0 0 var(--ink); }
+  button.primary { background: var(--stamp); color: #fff6ee; border-color: #6d1710; box-shadow: 3px 3px 0 #6d1710; text-align: center; font-family: var(--display); font-weight: 900; font-size: 1.5rem; letter-spacing: .04em; text-transform: uppercase; min-height: 56px; }
+  button.primary:hover { background: #d4443a; }
+  button.primary:active { box-shadow: 0 0 0 #6d1710; }
+  button.danger { border-color: var(--stamp); color: #7a1b14; box-shadow: 3px 3px 0 var(--stamp); }
+  button:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+  :focus-visible { outline: 3px solid var(--stamp); outline-offset: 2px; }
+
+  .hidden { display: none !important; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; } .row > * { flex: 1; min-width: 120px; }
+  .tag { display: inline-block; border: 1px solid var(--ink); padding: 0 7px; font-size: .74rem; margin: 2px; background: var(--paper-2); }
+  .tag.trait { background: var(--mark); } .tag.job { background: var(--ink); color: var(--paper); } .tag.danger { background: var(--stamp); color: #fff; border-color: var(--stamp); }
+  #screen-end { text-align: center; } #screen-end h2 { font-family: var(--display); font-weight: 900; font-size: 2.6rem; text-transform: uppercase; margin: 12px 0; }
+
+  /* ----- creation form ----- */
+  .form-body { display: grid; gap: 0; grid-template-columns: minmax(0,1fr); } .fields, .stub { min-width: 0; } .sheet { overflow: clip; }
+  @media (min-width: 800px) { .form-body { grid-template-columns: minmax(0,1.3fr) minmax(280px,1fr); } .stub { border-left: 2px dashed var(--ink-soft); align-self: start; position: sticky; top: 0; } }
+  .fields { padding: 6px 18px 18px; }
+  fieldset { border: 0; min-width: 0; padding: 14px 0 4px; }
+  legend { font-family: var(--display); font-weight: 700; font-size: 1.3rem; letter-spacing: .03em; text-transform: uppercase; padding: 0; }
+  legend i { font-style: normal; display: inline-block; min-width: 1.5em; margin-right: 6px; background: var(--ink); color: var(--paper); text-align: center; }
+  .hint { font-size: .84rem; color: var(--ink-soft); margin: 2px 0 8px; }
+
+  .name-row { display: flex; gap: 10px; align-items: flex-end; }
+  input[type=text] { flex: 1; min-width: 0; font-family: var(--type); font-weight: 700; font-size: 1.5rem; color: var(--ink); background: transparent; border: 0; border-bottom: 2px solid var(--ink); border-radius: 0; padding: 6px 2px; min-height: 48px; }
+  input[type=text]::placeholder { color: var(--rule); }
+  .name-row button { width: auto; min-height: 44px; padding: 0 12px; font-size: .9rem; text-align: center; }
+
+  .opt { position: relative; display: block; }
+  .opt input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; margin: 0; cursor: pointer; }
+  .opt .card { display: grid; grid-template-columns: 22px 1fr; gap: 4px 12px; padding: 10px 8px; border-bottom: 1px solid var(--rule); transition: background .12s; }
+  .opt:hover .card { background: var(--paper-2); }
+  .opt .box { width: 20px; height: 20px; border: 2px solid var(--ink); margin-top: 3px; position: relative; background: var(--paper); }
+  .opt input:checked + .card .box::before, .opt input:checked + .card .box::after { content: ""; position: absolute; left: 50%; top: -3px; width: 3px; height: 24px; background: var(--stamp); }
+  .opt input:checked + .card .box::before { transform: translateX(-50%) rotate(45deg); }
+  .opt input:checked + .card .box::after { transform: translateX(-50%) rotate(-45deg); }
+  .opt input:checked + .card .name { background: var(--mark); box-shadow: 0 0 0 3px var(--mark); }
+  .opt input:focus-visible + .card { outline: 3px solid var(--stamp); outline-offset: -3px; }
+  .card .name { font-weight: 700; justify-self: start; }
+  .card .desc { grid-column: 2; font-size: .84rem; color: var(--ink-soft); line-height: 1.35; }
+  .card .chips { grid-column: 2; font-size: .8rem; display: flex; flex-wrap: wrap; gap: 2px 12px; }
+  .chip { color: var(--good); font-weight: 700; } .chip.bad { color: var(--stamp); }
+  .list.two { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; }
+  @media (max-width: 560px) { .list.two { grid-template-columns: 1fr; } }
+  .sex { display: flex; gap: 6px 18px; flex-wrap: wrap; }
+  .sex .opt .card { grid-template-columns: 22px auto; border: 0; padding: 6px 4px; }
+
+  /* stub = the tear-off ledger */
+  .stub { padding: 14px 18px 18px; background: var(--paper-2); position: relative; }
+  .stub h3 { font-family: var(--display); font-weight: 700; font-size: 1.3rem; text-transform: uppercase; letter-spacing: .03em; }
+  .pv-name { font-size: .84rem; color: var(--ink-soft); margin-bottom: 10px; }
+  .dice { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .die { border: 2px solid var(--ink); background: var(--paper); text-align: center; padding: 4px 0 3px; position: relative; }
+  .die b { display: block; font-family: var(--display); font-weight: 900; font-size: 2.6rem; line-height: 1; }
+  .die i { display: block; font-style: normal; font-size: .72rem; letter-spacing: .1em; color: var(--ink-soft); }
+  .die u { position: absolute; top: -9px; right: -6px; text-decoration: none; background: var(--mark); border: 1.5px solid var(--ink); font-size: .74rem; font-weight: 700; padding: 0 5px; transform: rotate(5deg); }
+  .die.up b { color: var(--ink); }
+  .ledger { margin-top: 14px; border-top: 2px solid var(--ink); }
+  .ledger div { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; font-size: .86rem; }
+  .ledger div::after { content: ""; order: 1; flex: 1; border-bottom: 1px dotted var(--ink-soft); }
+  .ledger span { order: 0; } .ledger b { order: 2; }
+  .ledger .up b { color: var(--good); } .ledger .down b { color: var(--stamp); }
+  .classstamp { position: absolute; right: 10px; top: 10px; transform: rotate(7deg); border: 3px double var(--stamp); color: var(--stamp); font-family: var(--display); font-weight: 900; text-transform: uppercase; font-size: 1.1rem; padding: 0 8px; opacity: .85; pointer-events: none; }
+
+  .startbar { display: flex; align-items: center; gap: 14px; padding: 12px 18px calc(12px + env(safe-area-inset-bottom,0px)); border-top: 2px solid var(--ink); background: var(--paper); position: sticky; bottom: 0; z-index: 5; }
+  .startbar .who { flex: 1; min-width: 0; } .startbar .who strong { display: block; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .startbar .who span { display: block; font-size: .8rem; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .startbar button { width: auto; flex: 0 0 auto; padding: 0 26px; }
+
+  #stamp { position: fixed; inset: 0; display: none; place-items: center; z-index: 50; background: rgba(13,21,18,.55); }
+  #stamp.on { display: grid; }
+  #stamp span { font-family: var(--display); font-weight: 900; text-transform: uppercase; font-size: clamp(3.4rem, 17vw, 8rem); color: var(--stamp); border: .09em double var(--stamp); padding: 0 .2em; background: rgba(227,235,217,.92); transform: rotate(-9deg); animation: slam .32s cubic-bezier(.2,1.4,.4,1) both; }
+  @keyframes slam { from { transform: rotate(-9deg) scale(2.4); opacity: 0; } to { transform: rotate(-9deg) scale(1); opacity: 1; } }
+
+  @media (max-width: 799px) {
+    .stub { position: sticky; top: 0; z-index: 6; order: -1; padding: 8px 10px; border-bottom: 2px solid var(--ink); border-left: 0; }
+    .stub h3, .pv-name, .ledger, .classstamp { display: none; }
+    .dice { grid-template-columns: repeat(6, 1fr); gap: 6px; }
+    .die b { font-size: 1.7rem; } .die i { font-size: .62rem; letter-spacing: 0; } .die u { top: -10px; right: -4px; font-size: .64rem; padding: 0 3px; }
+    .sheet-head .formno { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } #stamp span { animation: none; } }
+
+  /* Title screen slots */
+  .slot-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+  .slot-info { flex: 1; min-width: 180px; }
+  .slot-info strong { display: block; }
+  .slot-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .slot-actions button { width: auto; min-height: 48px; padding: 10px 14px; font-size: .9rem; }
+  #storage-warning { background: #fde8e6; border: 2px solid var(--stamp); color: #7a1b14; padding: 10px 14px; margin-bottom: 12px; font-size: .9rem; }
+  .title-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+  .title-actions button { width: auto; flex: 1; min-width: 120px; }
+
+</style>
+</head>
+<body>
+<div class="container">
+  <header class="masthead">
+    <h1>Life RPG Simulator</h1>
+    <p class="subtitle">File your birth. Then live with the dice.</p>
+  </header>
+
+  <!-- TITLE / SAVES -->
+  <div id="screen-title" class="sheet">
+    <div class="sheet-head">
+      <h2>Archive</h2>
+      <div class="formno">Form LF-0<br>Saved lives</div>
+    </div>
+    <div class="fields" style="padding:14px 18px 18px">
+      <div id="storage-warning" class="hidden" role="alert"></div>
+      <div class="title-actions">
+        <button type="button" class="primary" id="btn-continue">Continue</button>
+        <button type="button" id="btn-new-life">New life</button>
+        <button type="button" id="btn-import">Import</button>
+        <input type="file" id="import-file" accept="application/json,.json" hidden>
+      </div>
+      <h3 style="font-family:var(--display);text-transform:uppercase;margin:8px 0 4px">Saved lives</h3>
+      <div id="slot-list"></div>
+    </div>
+  </div>
+
+  <!-- CREATE -->
+  <div id="screen-create" class="hidden">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>Certificate of Birth</h2>
+        <div class="formno">Form LF-1<br>Copy 1 of 3: applicant</div>
+      </div>
+      <div class="form-body">
+        <div class="fields">
+          <fieldset>
+            <legend><i>A</i>Name</legend>
+            <div class="name-row">
+              <input type="text" id="inp-name" placeholder="Alex" value="Alex" maxlength="24" autocomplete="off" enterkeyhint="go" aria-label="Character name">
+              <button type="button" id="btn-random" aria-label="Pick a random name">Random</button>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend><i>B</i>Gender</legend>
+            <div class="sex" id="gender-seg"></div>
+            <input type="hidden" id="inp-gender" value="Male">
+          </fieldset>
+          <fieldset>
+            <legend><i>C</i>Household you\'re born into</legend>
+            <p class="hint">Sets starting money, schooling and reputation. Tick one.</p>
+            <div class="list" id="bg-list"></div>
+            <input type="hidden" id="inp-bg" value="Working Class">
+          </fieldset>
+          <fieldset>
+            <legend><i>D</i>Distinguishing trait</legend>
+            <p class="hint">One small edge that shapes your early rolls.</p>
+            <div class="list two" id="trait-list"></div>
+            <input type="hidden" id="inp-trait" value="Athletic">
+          </fieldset>
+        </div>
+        <aside class="stub" aria-live="polite">
+          <div class="classstamp" id="pv-class"></div>
+          <h3>Starting ledger</h3>
+          <p class="pv-name" id="pv-name"></p>
+          <div class="dice" id="pv-core"></div>
+          <div class="ledger" id="pv-other"></div>
+        </aside>
+      </div>
+      <div class="startbar">
+        <button type="button" id="btn-back-title" style="width:auto;min-width:80px">Back</button>
+        <div class="who"><strong id="sb-name">Alex</strong><span id="sb-sub"></span></div>
+        <button class="primary" type="button" onclick="beginLife()">Register birth</button>
+      </div>
+    </div>
+    <div id="stamp" aria-hidden="true"><span>Registered</span></div>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game" class="hidden">
+    <div class="panel" id="status-panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <strong id="st-name">Name</strong>
+          <span class="tag" id="st-age">Age 0</span>
+          <span class="tag job" id="st-job">Unemployed</span>
+        </div>
+        <div id="st-tags"></div>
+      </div>
+      <div class="stats-grid" style="margin-top:12px">
+        <div class="stat">Health <span id="st-health">100</span>
+          <div class="bar"><div class="bar-fill bar-health" id="bar-health" style="width:100%"></div></div>
+        </div>
+        <div class="stat">Happiness <span id="st-happy">65</span>
+          <div class="bar"><div class="bar-fill bar-happy" id="bar-happy" style="width:65%"></div></div>
+        </div>
+        <div class="stat">Stress <span id="st-stress">0</span>
+          <div class="bar"><div class="bar-fill bar-stress" id="bar-stress" style="width:0%"></div></div>
+        </div>
+        <div class="stat">Heat <span id="st-heat">0</span>
+          <div class="bar"><div class="bar-fill bar-heat" id="bar-heat" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat">Money <span id="st-money">$0</span></div>
+        <div class="stat">STR <span id="st-str">8</span> · INT <span id="st-int">8</span> · CHA <span id="st-cha">8</span></div>
+        <div class="stat">AGI <span id="st-agi">8</span> · LCK <span id="st-lck">8</span> · WIL <span id="st-wil">8</span></div>
+        <div class="stat">Crime <span id="st-crime">0</span> · Work <span id="st-work">0</span> · Combat <span id="st-combat">0</span></div>
+      </div>
+      <div style="font-size:0.8rem;color:var(--muted);margin-top:6px">
+        Street Rep <span id="st-street">0</span> · Corp Rep <span id="st-corp">0</span> · Education <span id="st-edu">None</span>
+        <span id="st-extra"></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div id="story-text" style="margin-bottom:12px;min-height:40px"></div>
+      <div class="choices" id="choices"></div>
+    </div>
+
+    <div class="panel">
+      <strong style="font-size:0.85rem;color:var(--muted)">Recent Events</strong>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+
+  <!-- END -->
+  <div id="screen-end" class="panel hidden">
+    <h2>Life Complete</h2>
+    <div id="end-summary"></div>
+    <br>
+    <button class="primary" type="button" id="btn-end-archive">Back to archive</button>
+  </div>
+</div>
+
+<script type="module">
+import { renderTitleScreen, setupTitleActions, setupCreationForm } from "./src/ui/title.js";
+import { setCallbacks } from "./src/ui/game.js";
+
+setCallbacks({
+  onDeath: () => {},
+  onAutosaveFail: (msg) => {
+    const w = document.getElementById("storage-warning");
+    // show a transient alert; also surface on end screen
+    console.warn(msg);
+    alert(msg);
+  }
+});
+
+setupTitleActions();
+setupCreationForm();
+renderTitleScreen();
+
+document.getElementById("btn-end-archive")?.addEventListener("click", () => {
+  renderTitleScreen();
+});
+</script>
+</body>
+</html>

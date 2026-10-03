@@ -1,0 +1,10 @@
+{
+  "name": "life-rpg-simulator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/saves.test.js",
+    "start": "npx --yes serve -p 3000 ."
+  }
+}
