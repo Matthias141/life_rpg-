@@ -7,6 +7,9 @@ import {
   JOBS, CRIMES, NAMES
 } from "../engine/index.js";
 import {
+  react, moodSummary, generateNpc, hashSeed, applyNpcPatch
+} from "../engine/npc.js";
+import {
   createSlotFromState, autosave, saveSlot, getStorageWarning
 } from "../storage/saves.js";
 
@@ -323,6 +326,7 @@ function adultPhase() {
     { label: "🔫 Crime & Underworld", action: crimeMenu },
     { label: "🏋️ Train / Education", action: trainMenu },
     { label: "❤️ Social & Relationships", action: socialMenu },
+    { label: "👥 People", action: peopleMenu },
     { label: "🛒 Assets & Shopping", action: shopMenu },
     { label: "😴 Rest & Recover", action: () => {
       mod("health", 10, "rest"); mod("happiness", 8, "rest"); mod("stress", -15, "rest");
@@ -340,6 +344,105 @@ function adultPhase() {
     finishYear();
   }});
   setChoices(choices);
+}
+
+function peopleMenu() {
+  if (!P.npcs) P.npcs = {};
+  const list = Object.values(P.npcs);
+  if (!list.length) {
+    setStory("You don't know anyone notable yet.");
+    setChoices([{ label: "← Back", action: adultPhase }]);
+    return;
+  }
+  setStory("<strong>People</strong><br>Who do you approach?");
+  const choices = list.map((n) => ({
+    label: `${n.name} (${n.role}, ${n.age}) — ${moodSummary(n)}`,
+    action: () => openDossier(n.id)
+  }));
+  // on-demand friend if adult
+  if (P.age >= 12 && !list.some((n) => n.role === "friend")) {
+    choices.push({
+      label: "Meet someone new (friend)",
+      action: () => {
+        const seed = hashSeed(P.name + ":friend:" + P.age);
+        const f = generateNpc("friend", { id: "friend_" + seed.toString(36) }, seed);
+        P.npcs[f.id] = f;
+        openDossier(f.id);
+      }
+    });
+  }
+  choices.push({ label: "← Back", action: adultPhase });
+  setChoices(choices);
+}
+
+function openDossier(id) {
+  const n = P.npcs[id];
+  if (!n) return peopleMenu();
+  const last = (n.memory || []).slice().sort((a, b) => b.weight - a.weight)[0];
+  const lastTxt = last
+    ? `Remembers: ${last.type} (age ${last.year}, weight ${last.weight.toFixed(1)})`
+    : "No strong memories yet.";
+  setStory(
+    `<strong>${n.name}</strong> · ${n.role} · age ${n.age}<br>` +
+    `<em>${moodSummary(n)}</em><br><br>` +
+    `Trust ${n.bond.trust} · Affection ${n.bond.affection} · Respect ${n.bond.respect}<br>` +
+    `Fear ${n.bond.fear} · Resentment ${n.bond.resentment}<br><br>` +
+    `${lastTxt}`
+  );
+  const acts = ["talk", "ask_favor", "gift", "argue", "threaten", "help"];
+  const labels = {
+    talk: "Talk",
+    ask_favor: "Ask favor",
+    gift: "Gift ($200)",
+    argue: "Argue",
+    threaten: "Threaten",
+    help: "Help"
+  };
+  const choices = acts.map((a) => ({
+    label: labels[a],
+    danger: a === "threaten" || a === "argue",
+    action: () => doNpcAction(id, a)
+  }));
+  choices.push({ label: "← People list", action: peopleMenu });
+  setChoices(choices);
+}
+
+function doNpcAction(id, action) {
+  const n = P.npcs[id];
+  if (!n) return peopleMenu();
+  const ctx = { year: P.age, moneyGift: action === "gift" ? 200 : 0 };
+  if (action === "gift") {
+    if (P.money < 200) {
+      setStory("Not enough money for a gift.");
+      setChoices([{ label: "← Back", action: () => openDossier(id) }]);
+      return;
+    }
+    P.money -= 200;
+  }
+  const result = react(n, action, ctx);
+  P.npcs = applyNpcPatch(P.npcs, id, result.npcPatch);
+
+  // light player effects from outcome
+  if (result.outcome === "helped" || result.outcome === "favor_granted") {
+    mod("happiness", 4);
+  }
+  if (result.outcome === "betrayed" || result.outcome === "argument_escalated") {
+    mod("stress", 5);
+  }
+  if (result.outcome === "intimidated") {
+    mod("street", 1);
+  }
+
+  addLog(`${n.name}: "${result.line}"`, result.moodDelta >= 0 ? "good" : "bad");
+  setStory(
+    `<strong>${n.name}</strong><br>"${result.line}"<br><br>` +
+    `Outcome: ${result.outcome.replace(/_/g, " ")}`
+  );
+  setChoices([
+    { label: "Continue with them", action: () => openDossier(id) },
+    { label: "Done for this year →", primary: true, action: finishYear }
+  ]);
+  updateStatus();
 }
 
 function finishYear() {

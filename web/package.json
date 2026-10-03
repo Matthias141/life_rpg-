@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/saves.test.js",
+    "test": "node --test tests/*.test.js",
     "start": "npx --yes serve -p 3000 ."
   }
 }

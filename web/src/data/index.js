@@ -1,7 +1,7 @@
 /** Static game data — no functions, pure values. */
 
-export const APP_VERSION = "1.0.0";
-export const SAVE_VERSION = 1;
+export const APP_VERSION = "1.1.0";
+export const SAVE_VERSION = 2;
 
 export const BACKGROUNDS = {
   "Poor": { money: 0, education: 5, happiness: -5, crime: 1 },

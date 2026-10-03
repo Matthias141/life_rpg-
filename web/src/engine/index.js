@@ -4,6 +4,7 @@
  */
 
 import { BACKGROUNDS, TRAITS, JOBS, CRIMES, NAMES } from "../data/index.js";
+import { ensureFamilyNpcs, tickYear, hashSeed } from "./npc.js";
 
 export function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 export function rand(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
@@ -38,7 +39,8 @@ export function createPlayer(name, gender, bg, trait) {
     inventory: [], vehicle: null, property: null, business: false,
     addiction: null, addictionLevel: 0, injury: null,
     traits: [trait], flags: {},
-    lineage: { dynastyId: uid(), generation: 1, ancestors: [] }
+    lineage: { dynastyId: uid(), generation: 1, ancestors: [] },
+    npcs: {}
   };
   const b = BACKGROUNDS[bg] || {};
   for (const k in b) {
@@ -55,6 +57,7 @@ export function createPlayer(name, gender, bg, trait) {
   }
   p.health = clamp(p.health, 0, 100);
   p.happiness = clamp(p.happiness, 0, 100);
+  p.npcs = ensureFamilyNpcs(p, hashSeed(name + bg + trait));
   return p;
 }
 
@@ -99,6 +102,15 @@ export function advanceYear(P) {
     if (P.addictionLevel >= 8 && chance(12)) mod(P, "health", -18, "severe episode");
   }
   if (P.property === "Apartment") P.money = Math.max(0, P.money - 1200);
+
+  // NPC yearly ticks
+  if (P.npcs) {
+    const next = {};
+    for (const id of Object.keys(P.npcs)) {
+      next[id] = tickYear(P.npcs[id]);
+    }
+    P.npcs = next;
+  }
 
   if (P.health <= 0) {
     P.alive = false;

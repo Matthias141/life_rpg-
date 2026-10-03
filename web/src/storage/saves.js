@@ -7,6 +7,7 @@
  */
 
 import { APP_VERSION, SAVE_VERSION, MAX_SLOTS } from "../data/index.js";
+import { ensureFamilyNpcs, hashSeed } from "../engine/npc.js";
 
 const INDEX_KEY = "liferpg:v1:index";
 const slotKey = (id) => `liferpg:v1:slot:${id}`;
@@ -14,8 +15,23 @@ const corruptKey = (id) => `liferpg:v1:corrupt:${id}`;
 
 /** Ordered migrations: index = saveVersion the migration upgrades FROM. */
 export const MIGRATIONS = [
-  // v0 → v1 example placeholder (no-op; real v0 never existed)
-  // When SAVE_VERSION becomes 2, push a function that transforms state.
+  // index 0: v0 → v1 (no-op; v0 never shipped)
+  (state) => state,
+  // index 1: v1 → v2 — add npcs + generate parents
+  (state) => {
+    if (!state.npcs) state.npcs = {};
+    if (!state.lineage) {
+      state.lineage = { dynastyId: "mig_" + Date.now().toString(36), generation: 1, ancestors: [] };
+    }
+    // lazy import avoided; parent generation happens on load via ensure in UI/engine
+    try {
+      // Dynamic not available in all contexts; leave empty and let ensureFamilyNpcs fill on play
+      if (Object.keys(state.npcs).length === 0) {
+        state._needsFamilyNpcs = true;
+      }
+    } catch { /* ignore */ }
+    return state;
+  }
 ];
 
 /* ---------- storage availability ---------- */
@@ -163,6 +179,11 @@ export function loadSlot(id) {
       generation: 1,
       ancestors: []
     };
+  }
+  if (!parsed.state.npcs) parsed.state.npcs = {};
+  if (parsed.state._needsFamilyNpcs || Object.keys(parsed.state.npcs).length === 0) {
+    parsed.state.npcs = ensureFamilyNpcs(parsed.state, hashSeed(parsed.state.name || "x"));
+    delete parsed.state._needsFamilyNpcs;
   }
 
   return { ok: true, slot: parsed };
